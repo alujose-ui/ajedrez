@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1c1f24">
+<title>Problemas de ajedrez</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="pieces.css">
+<style>
+:root{
+  --bg:#1c1f24; --panel:#262a31; --text:#e9e6df; --muted:#9aa0a8;
+  --light:#eedab5; --dark:#b58863;
+  --ok:#5fb26b; --bad:#e0584f; --accent:#e8b04a;
+  --sel:rgba(20,85,30,.5); --last:rgba(155,199,0,.41); --dot:rgba(20,85,30,.5);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+  font:16px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{display:flex;justify-content:center;overscroll-behavior:none}
+main{width:100%;max-width:560px;padding:12px 8px calc(12px + env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;gap:10px;min-height:100%}
+.oculto{display:none!important}
+h1{font-size:1.6rem;margin:.2em 0;text-align:center}
+button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:13px 16px;
+  background:var(--panel);color:var(--text);cursor:pointer;touch-action:manipulation}
+button:active{transform:scale(.98)}
+button.principal{background:var(--accent);color:#1c1f24}
+button:disabled{opacity:.4}
+
+/* Inicio y fin */
+.pantalla{display:flex;flex-direction:column;gap:14px;align-items:stretch;margin-top:6vh}
+.caja{background:var(--panel);border-radius:12px;padding:16px}
+.caja p{margin:.3em 0}
+.grande{font-size:2.4rem;font-weight:700;color:var(--accent)}
+.niveles{display:flex;gap:8px}
+.niveles button{flex:1;padding:10px 4px}
+.niveles button.activo{outline:2px solid var(--accent)}
+.etq{color:var(--muted);font-size:.85rem;margin-bottom:6px}
+.opcion{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:.92rem;color:var(--muted)}
+.opcion input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--accent)}
+.lista{display:flex;flex-direction:column;gap:6px;max-height:40vh;overflow:auto}
+.lista button{display:flex;justify-content:space-between;font-weight:500;padding:10px 12px}
+
+/* Marcador */
+.marcador{display:flex;justify-content:space-between;align-items:center;gap:8px;
+  background:var(--panel);border-radius:12px;padding:8px 12px}
+.dato{display:flex;flex-direction:column;align-items:center;min-width:64px}
+.dato b{font-size:1.45rem;line-height:1.1}
+.dato span{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.fallos{display:flex;gap:6px;font-size:1.35rem;font-weight:700}
+.fallos i{font-style:normal;color:#4a5059}
+.fallos i.x{color:var(--bad)}
+
+/* Tablero */
+.tablero{position:relative;width:min(100%,70vh);aspect-ratio:1;margin:0 auto;
+  display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);
+  border-radius:4px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+.cas{position:relative}
+.cas.cl{background:var(--light)} .cas.cs{background:var(--dark)}
+.cas.ultimo::before,.cas.sel::before,.cas.jaque::before,.cas.malo::before{content:"";position:absolute;inset:0}
+.cas.ultimo::before{background:var(--last)}
+.cas.sel::before{background:var(--sel)}
+.cas.malo::before{background:rgba(224,88,79,.55)}
+.cas.jaque::before{background:radial-gradient(circle,rgba(255,0,0,1) 0%,rgba(231,0,0,1) 25%,rgba(169,0,0,0) 89%)}
+.cas.destino::after{content:"";position:absolute;left:36%;top:36%;width:28%;height:28%;
+  border-radius:50%;background:var(--dot);z-index:3;pointer-events:none}
+.cas.destino.ocupada::after{left:0;top:0;width:100%;height:100%;border-radius:0;background:
+  radial-gradient(transparent 0 79%,var(--dot) 80%)}
+.coord{position:absolute;font-size:clamp(9px,2.4vw,12px);font-weight:700;pointer-events:none;z-index:1}
+.coord.f{right:3px;bottom:1px} .coord.r{left:3px;top:1px}
+.cl .coord{color:var(--dark)} .cs .coord{color:var(--light)}
+.pc{position:absolute;inset:0;background-size:cover;z-index:2;pointer-events:none;will-change:transform}
+.pc.mov{transition:transform .22s ease}
+.pc.arrastrada{opacity:.3}
+.fantasma{position:fixed;z-index:50;pointer-events:none;background-size:cover}
+svg.flechas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4}
+
+/* Estado y botones */
+.estado{text-align:center;font-weight:600;min-height:1.5em;font-size:1.05rem}
+.estado.ok{color:var(--ok)} .estado.bad{color:var(--bad)}
+.estado small{display:block;color:var(--muted);font-weight:400;font-size:.8rem;margin-top:2px}
+.sug{color:#8fb4ff;font-weight:500;font-size:.95rem;margin-top:6px}
+#btnIdea.apagado{opacity:.35;filter:grayscale(1)}
+.linea{color:var(--text);font-weight:500;font-size:1rem;margin-top:6px}
+.linea .act{background:var(--accent);color:#1c1f24;padding:0 5px;border-radius:5px;font-weight:700}
+.linea .hecha{color:var(--muted)}
+.turno{display:inline-block;width:.9em;height:.9em;border-radius:50%;vertical-align:-.1em;
+  margin-right:6px;border:1px solid #888}
+.acciones{display:flex;gap:8px}
+.acciones button{flex:1}
+.pie{text-align:center;font-size:.75rem;color:var(--muted);margin-top:auto}
+.pie a{color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+
+  <!-- Inicio -->
+  <section id="inicio" class="pantalla">
+    <h1>♞ Problemas de ajedrez</h1>
+    <div class="caja" style="text-align:center">
+      <div class="etq">Récord</div>
+      <div class="grande" id="recordResueltos">0</div>
+      <p id="recordNivel" class="etq"></p>
+    </div>
+    <div class="caja">
+      <div class="etq">Nivel inicial</div>
+      <div class="niveles" id="niveles">
+        <button data-nivel="500" class="activo">Fácil<br><small>500</small></button>
+        <button data-nivel="1000">Medio<br><small>1000</small></button>
+        <button data-nivel="1500">Difícil<br><small>1500</small></button>
+      </div>
+      <label class="opcion"><input type="checkbox" id="chkAuto">
+        Al acertar, pasar directamente al siguiente problema (sin pararse a analizar)</label>
+    </div>
+    <button class="principal" id="btnEmpezar" disabled>Cargando problemas…</button>
+    <p class="etq" id="infoBbdd" style="text-align:center"></p>
+  </section>
+
+  <!-- Juego -->
+  <section id="juego" class="oculto" style="display:flex;flex-direction:column;gap:10px">
+    <div class="marcador">
+      <div class="dato"><b id="mNum">1</b><span>Problema</span></div>
+      <div class="dato"><b id="mNivel">500</b><span>Nivel</span></div>
+      <div class="dato"><b id="mOk">0</b><span>Resueltos</span></div>
+      <div class="dato"><div class="fallos" id="mFallos"><i>✕</i><i>✕</i><i>✕</i></div><span>Fallos</span></div>
+    </div>
+    <div class="tablero" id="tablero"></div>
+    <div class="estado" id="estado"></div>
+    <div class="acciones" id="accJugando">
+      <button id="btnRendirse">Ver solución</button>
+    </div>
+    <div class="acciones oculto" id="accSolucion">
+      <button id="btnAtras" aria-label="Jugada anterior">◀</button>
+      <button id="btnAdelante" aria-label="Jugada siguiente">▶</button>
+      <button id="btnIdea" aria-label="Sugerencias del motor" title="Sugerencias del motor (activar/desactivar)">💡</button>
+      <button class="principal" id="btnSiguiente" style="flex:2">Siguiente problema</button>
+    </div>
+    <div class="acciones">
+      <button id="btnTerminar" style="background:transparent;color:var(--muted);font-weight:500;padding:6px">Terminar partida</button>
+    </div>
+  </section>
+
+  <!-- Fin -->
+  <section id="fin" class="pantalla oculto">
+    <h1>Fin de la partida</h1>
+    <div class="caja" style="text-align:center">
+      <div class="etq">Problemas resueltos</div>
+      <div class="grande" id="fResueltos">0</div>
+      <p id="fNivel"></p>
+      <p id="fRecord" class="etq"></p>
+    </div>
+    <div class="caja" id="fFalladosCaja">
+      <div class="etq">Problemas fallados (toca para repasar la solución)</div>
+      <div class="lista" id="fFallados"></div>
+    </div>
+    <button class="principal" id="btnOtra">Empezar de nuevo</button>
+    <button id="btnMenu">Menú</button>
+  </section>
+
+  <div class="pie">Problemas de la base de datos libre de <a href="https://database.lichess.org/#puzzles">Lichess</a> · v5</div>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
