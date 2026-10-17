@@ -48,6 +48,7 @@ Si más adelante cambias algún fichero o regeneras `puzzles.json`, sube el núm
 - En el análisis también puedes mover una pieza aunque no sea su turno.
 - **Sugerencias del motor (💡)**: en tus variantes, Stockfish marca con una flecha azul la mejor jugada para el bando que mueve. También indica la evaluación o si hay mate. Sirve para ver por qué una jugada es mala: hazla y mira qué responde el rival. El botón 💡 activa o desactiva las sugerencias. Funciona sin conexión.
 - Si prefieres el ritmo de Puzzle Rush, marca en el inicio "Al acertar, pasar directamente al siguiente problema". Con esa opción, solo te paras a analizar cuando fallas.
+- **Sonidos**: un toque suave al mover, uno más seco al capturar y uno distinto para el jaque y el mate. Se generan en el propio navegador (no hay ficheros de audio) y se quitan desmarcando "Sonido al mover las piezas" en el inicio.
 - Con 3 fallos termina la partida. Se guarda tu récord y puedes repasar los problemas fallados.
 
 ## Ficheros

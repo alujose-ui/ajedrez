@@ -1,6 +1,6 @@
 // Service worker: guarda la app y los problemas para jugar sin conexión.
 // Si cambias algún fichero (o regeneras puzzles.json), sube el número de versión.
-const CACHE = 'ajedrez-problemas-v5';
+const CACHE = 'ajedrez-problemas-v6';
 const FICHEROS = [
   './', 'index.html', 'app.js', 'chess.js', 'pieces.css',
   'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'puzzles.json',

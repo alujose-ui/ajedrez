@@ -191,6 +191,7 @@ function jugarRival() {
   if (S.paso === 1) { S.fenJugador = S.chess.fen(); S.ultimoJugador = S.ultimo; }
   S.sel = null; S.destinos = [];
   pintarJuego({ anim: m });
+  sonido(m.san);
 }
 
 // En 'jugando' se resuelve el problema; en los modos de análisis (tras
@@ -242,6 +243,7 @@ function intentar(from, to, conAnimacion) {
     S.paso++;
     S.ultimo = { from: m.from, to: m.to };
     pintarJuego({ anim: conAnimacion ? m : null });
+    sonido(m.san);
     if (S.chess.isCheckmate() || S.paso >= S.movs.length) return resuelto();
     S.modo = 'rival';
     estado('¡Bien! Sigue…', 'ok');
@@ -255,6 +257,7 @@ function intentar(from, to, conAnimacion) {
   } else {
     // Enseña brevemente la jugada errónea y la deshace
     pintarJuego({ ultimo: { from: m.from, to: m.to }, malo: m.to, anim: conAnimacion ? m : null });
+    sonido(m.san);
     S.modo = 'fallado';
     const g = S.gen;
     setTimeout(() => {
@@ -376,6 +379,59 @@ function textoSugerencia(fen, mov, score) {
   return `💡 Mejor jugada de ${bando}: <b>${san}</b> (flecha azul)${extra}`;
 }
 
+// ---------- sonidos (generados con Web Audio, sin ficheros) ----------
+const Sonido = {
+  ctx: null,
+  activar() {                       // los móviles exigen crear el audio tras un toque
+    try {
+      if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+    } catch { this.ctx = null; }
+  },
+  // "toc" de pieza de madera: ruido corto filtrado + golpe grave
+  toc(fuerza = 1) {
+    const c = this.ctx, t = c.currentTime;
+    const len = Math.floor(c.sampleRate * 0.06);
+    const buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 4);
+    const ruido = c.createBufferSource(); ruido.buffer = buf;
+    const filtro = c.createBiquadFilter(); filtro.type = 'bandpass';
+    filtro.frequency.value = 1700 - 300 * (fuerza - 1); filtro.Q.value = 1.2;
+    const gr = c.createGain(); gr.gain.value = 0.55 * fuerza;
+    ruido.connect(filtro).connect(gr).connect(c.destination);
+    ruido.start(t);
+    const osc = c.createOscillator(); osc.type = 'sine';
+    osc.frequency.setValueAtTime(190, t); osc.frequency.exponentialRampToValueAtTime(90, t + 0.08);
+    const go = c.createGain();
+    go.gain.setValueAtTime(0.35 * fuerza, t); go.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+    osc.connect(go).connect(c.destination);
+    osc.start(t); osc.stop(t + 0.12);
+  },
+  nota(freq, ini, dur, vol = 0.18) {
+    const c = this.ctx, t = c.currentTime + ini;
+    const osc = c.createOscillator(); osc.type = 'triangle'; osc.frequency.value = freq;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(g).connect(c.destination);
+    osc.start(t); osc.stop(t + dur + 0.02);
+  },
+  jugada(san) {
+    if (!S.sonido || !this.ctx || !san) return;
+    try {
+      if (san.includes('#')) {        // mate: toc + acorde ascendente
+        this.toc(1.3); this.nota(659, 0.05, 0.25); this.nota(880, 0.14, 0.25); this.nota(1319, 0.23, 0.5);
+      } else if (san.includes('+')) { // jaque: toc + dos notas
+        this.toc(1.2); this.nota(988, 0.04, 0.16); this.nota(1319, 0.13, 0.3);
+      } else if (san.includes('x')) this.toc(1.5);   // captura: más seco
+      else this.toc(1);
+    } catch {}
+  },
+};
+const sonido = (san) => Sonido.jugada(san);
+for (const ev of ['pointerdown', 'keydown']) document.addEventListener(ev, () => Sonido.activar(), { capture: true });
+
 // ---------- motor de ajedrez (Stockfish 19 lite, un hilo, sin conexión) ----------
 const Motor = {
   w: null, fallo: false, ocupado: null, cola: null,
@@ -428,6 +484,7 @@ function movimientoLibre(from, to, conAnimacion) {
   const m = ch.move({ from, to, promotion: legales[0].promotion ? 'q' : undefined });
   S.sel = null; S.destinos = [];
   const anim = conAnimacion ? m : null;
+  sonido(m.san);
   // Si coincide con la siguiente jugada de la solución, simplemente avanza
   if (!v.libre && v.i < v.jug.length && uci(m) === v.uci[v.i]) { v.i++; pintarVista(anim); return; }
   if (!v.libre) v.libre = { fens: [fenAntes], jug: [ultimoAntes], san: [] };
@@ -567,6 +624,7 @@ $('btnAdelante').onclick = () => {
   S.sel = null; S.destinos = [];
   v.i++;
   pintarVista(v.jug[v.i - 1]);
+  sonido(v.san[v.i - 1]);
 };
 $('btnSiguiente').onclick = () => {
   if (S.modo === 'repaso') { mostrar('fin'); return; }
@@ -592,6 +650,9 @@ for (const b of $('niveles').children) {
 // ---------- arranque ----------
 S.nivelInicial = leer('ajedrez.nivelInicial', 500);
 S.auto = leer('ajedrez.auto', false);
+S.sonido = leer('ajedrez.sonido', true);
+$('chkSonido').checked = S.sonido;
+$('chkSonido').onchange = () => { S.sonido = $('chkSonido').checked; guardar('ajedrez.sonido', S.sonido); if (S.sonido) { Sonido.activar(); sonido('e4'); } };
 S.sugerencias = leer('ajedrez.sugerencias', true);
 $('btnIdea').classList.toggle('apagado', !S.sugerencias);
 $('chkAuto').checked = S.auto;
